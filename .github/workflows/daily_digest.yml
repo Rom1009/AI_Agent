@@ -2,6 +2,10 @@ name: Daily Digest Workflow
 on: 
   schedule:
     - cron: '0 3 * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   run-agent:
