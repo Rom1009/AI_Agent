@@ -1,0 +1,18 @@
+input: 
+  user_id: "Thomas"
+  run_date: "2026-04-27"
+  topics: ["AI Agents", "LangGraph", "MLOps"]
+  max_articles_per_topic: 5
+  user_interests: ["AI Agents", "LangGraph", "MLOps"]
+  output_language: "en"
+  digest_style: "brief"
+  
+  queries: []
+  candidate_urls: []
+  fetched_docs: []
+  filtered_docs: []
+  summarized_docs: []
+  
+  email_subject: ""
+  email_markdown: ""
+  warnings: []

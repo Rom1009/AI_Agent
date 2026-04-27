@@ -12,10 +12,32 @@ from email.message import EmailMessage
 from langchain_groq import ChatGroq
 from .datatype import SearchQueries, ScoreOutput
 from dotenv import load_dotenv
+import yaml
 
 load_dotenv()
 
 llm = ChatGroq(model="llama-3.1-8b-instant", api_key=os.getenv("GROQ_API_KEY"), max_tokens=1000)
+
+def load_config(state: DigestState) -> dict:
+    config_path = "config/input.yml"
+
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Configuration file not found at {config_path}")
+    
+    with open(config_path, "r") as f:
+        data = yaml.safe_load(f)
+    
+    data = data["input"]
+    return {
+        "user_id": data.get("user_id", "default_user"),
+        "run_date": data.get("run_date", datetime.now().strftime("%Y-%m-%d")),
+        "topics": data.get("topics", []),
+        "max_articles_per_topic": data.get("max_articles_per_topic", 3),
+        "user_interests": data.get("user_interests", []),
+        "output_language": data.get("output_language", "en"),
+        "digest_style": data.get("digest_style", "brief")
+
+    }
 
 def load_profile(state: DigestState) -> dict:
     topics = state["topics"] or ["RAG"]

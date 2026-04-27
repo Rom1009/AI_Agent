@@ -1,10 +1,11 @@
 from langgraph.graph import StateGraph, END, START
 from .state import DigestState
-from .nodes import load_profile, generate_queries, web_search, filter_docs, summarize_with_llm, format_email, send_email
+from .nodes import load_config, load_profile, generate_queries, web_search, filter_docs, summarize_with_llm, format_email, send_email
 
 def build_graph():
     builder = StateGraph(DigestState)
 
+    builder.add_node("load_config", load_config)
     builder.add_node("load_profile", load_profile)
     builder.add_node("generate_queries", generate_queries)
     builder.add_node("web_search", web_search)
@@ -14,7 +15,8 @@ def build_graph():
     builder.add_node("send_email", send_email)
 
 
-    builder.add_edge(START, "load_profile")
+    builder.add_edge(START, "load_config")
+    builder.add_edge("load_config", "load_profile")
     builder.add_edge("load_profile", "generate_queries")
     builder.add_edge("generate_queries", "web_search")
     builder.add_edge("web_search", "filter_docs")
