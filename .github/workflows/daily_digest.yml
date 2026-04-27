@@ -19,7 +19,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run Digest Agent
         env:
-          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }} # Lấy từ GitHub Secrets
+          PASS_WORD_MAIL: ${{ secrets.PASS_WORD_MAIL }} # Lấy từ GitHub Secrets
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }} # Lấy
           MAIL: ${{ secrets.MAIL }} # Lấy từ GitHub Secrets
         run: python main.py
