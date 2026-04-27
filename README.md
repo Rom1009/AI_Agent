@@ -1,3 +1,11 @@
+---
+title: Personal News Review
+sdk: docker
+emoji: 💻
+colorFrom: green
+colorTo: green
+---
+
 # Personalized Morning Research Agent
 
 A sophisticated AI-powered agent built with LangGraph that automates the creation and delivery of personalized morning research digests via email. This system leverages large language models to curate, summarize, and format relevant news and updates based on user-specified topics and interests.
