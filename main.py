@@ -1,21 +1,10 @@
-import sys
-import json
-from agents.graph import create_graph
-
-def run_agent(user_topic):
-    app = create_graph()
-    
-    # Chạy Agent
-    initial_state = {"topic": user_topic, "news_list": []}
-    result = app.invoke(initial_state)
-    
-    # Trả về kết quả dạng JSON để n8n đọc
-    print(json.dumps(result, ensure_ascii=False))
+from agents.graph import build_graph
+from IPython.display import Image, display
+import os, getpass
+from utils.utils import save_file
 
 if __name__ == "__main__":
-    # Lấy chủ đề từ tham số dòng lệnh (n8n truyền vào)
-    if len(sys.argv) > 1:
-        topic = sys.argv[1]
-    else:
-        topic = "AI News"
-    run_agent(topic)
+
+    graph = build_graph()
+    img = graph.get_graph(xray= True).draw_mermaid_png()
+    save_file("public/graph.png", img)

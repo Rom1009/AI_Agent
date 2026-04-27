@@ -1,18 +1,28 @@
-from langgraph.graph import StateGraph, END
-from .state import AgentState
-from .nodes import fetch_news_node, summarize_node
+from langgraph.graph import StateGraph, END, START
+from .state import DigestState
+from .nodes import load_profile, generate_queries, web_search, filter_docs, summarize_with_llm, format_email, send_email
 
-def create_graph():
-    # 1. Khởi tạo Graph với trạng thái đã định nghĩa
-    workflow = StateGraph(AgentState)
+def build_graph():
+    builder = StateGraph(DigestState)
 
-    # 2. Thêm các bước (Nodes)
-    workflow.add_node("fetcher", fetch_news_node)
-    workflow.add_node("summarizer", summarize_node)
+    builder.add_node("load_profile", load_profile)
+    builder.add_node("generate_queries", generate_queries)
+    builder.add_node("web_search", web_search)
+    builder.add_node("filter_docs", filter_docs)
+    builder.add_node("summarize_with_llm", summarize_with_llm)
+    builder.add_node("format_email", format_email)
+    builder.add_node("send_email", send_email)
 
-    # 3. Thiết lập đường đi (Edges)
-    workflow.set_entry_point("fetcher") # Bắt đầu ở node fetcher
-    workflow.add_edge("fetcher", "summarizer") # Xong fetcher thì sang summarizer
-    workflow.add_edge("summarizer", END) # Xong summarizer thì kết thúc
 
-    return workflow.compile()
+    builder.add_edge(START, "load_profile")
+    builder.add_edge("load_profile", "generate_queries")
+    builder.add_edge("generate_queries", "web_search")
+    builder.add_edge("web_search", "filter_docs")
+    builder.add_edge("filter_docs", "summarize_with_llm")
+
+
+    builder.add_edge("summarize_with_llm", "format_email")
+    builder.add_edge("format_email", "send_email")
+    builder.add_edge("send_email", END)
+
+    return builder.compile()
