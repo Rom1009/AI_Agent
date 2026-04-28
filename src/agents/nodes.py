@@ -1,6 +1,6 @@
 import os
 from langchain_ollama import ChatOllama
-from .state import DigestState
+from src.agents.state import DigestState
 from ddgs import DDGS
 from html import escape
 from datetime import datetime
@@ -10,18 +10,23 @@ from email.mime.multipart import MIMEMultipart
 from email.header import Header
 from email.message import EmailMessage
 from langchain_groq import ChatGroq
-from .datatype import SearchQueries, ScoreOutput
+from src.agents.datatype import SearchQueries, ScoreOutput
 from dotenv import load_dotenv
 import yaml
+from src.utils.logger import setup_logger
 
 load_dotenv()
+logger = setup_logger("AgentNode")
 
 llm = ChatGroq(model="llama-3.1-8b-instant", api_key=os.getenv("GROQ_API_KEY"), max_tokens=1000)
 
 def load_config(state: DigestState) -> dict:
+
     config_path = "config/input.yml"
+    logger.info(f"Loading configuration from {config_path}")
 
     if not os.path.exists(config_path):
+        logger.error(f"Configuration file not found at {config_path}")
         raise FileNotFoundError(f"Configuration file not found at {config_path}")
     
     with open(config_path, "r") as f:
@@ -40,15 +45,18 @@ def load_config(state: DigestState) -> dict:
     }
 
 def load_profile(state: DigestState) -> dict:
+    logger.info(f"Loading user profile for user_id: {state['user_id']}")
     topics = state["topics"] or ["RAG"]
     max_articles = state["max_articles_per_topic"] or 2
 
+    logger.info(f"User profile loaded with topics: {topics} and max_articles_per_topic: {max_articles}")
     return {
         "topics": topics,
         "max_articles": max_articles
     }
 
 def generate_queries(state: DigestState) -> dict:
+    logger.info(f"Generating search queries based on topics: {state['topics']}")
     topics = state["topics"]
     prompt = f"""
         Role: 
@@ -75,20 +83,25 @@ def generate_queries(state: DigestState) -> dict:
     """
 
     llm_with_tool = llm.with_structured_output(SearchQueries)
+    logger.info(f"Invoking LLM to generate queries with prompt: {prompt}")
     response = llm_with_tool.invoke(prompt)
+    logger.info(f"Received response from LLM: {response}")
 
     return {
         "queries": response.queries
     }
     
 def web_search(state: DigestState) -> dict:
+    logger.info(f"Performing web search for queries: {state['queries']}")
     queries = state["queries"]
     results = []
 
     search = DDGS()
     for query in queries:
+        logger.info(f"Searching for query: {query}")
         search_results = list(search.text(query, max_results=state["max_articles_per_topic"]))
 
+        logger.info(f"Found {len(search_results)} results for query: {query}")
         results.append({
             "query": query,
             "results": search_results
@@ -97,7 +110,7 @@ def web_search(state: DigestState) -> dict:
     return {"candidate_urls": results}
 
 def filter_docs(state: DigestState) -> dict: 
-    
+    logger.info(f"Filtering documents based on relevance to user interests: {state.get('user_interests', 'General Technology and AI')}")
     candidate_urls = state["candidate_urls"]
     filtered_results = []
     llm_with_tool = llm.with_structured_output(ScoreOutput)
@@ -108,7 +121,8 @@ def filter_docs(state: DigestState) -> dict:
             title = result["title"]
             body = result["body"]
 
-            
+            logger.info(f"Processing document: {title}")
+            logger.debug(f"Document content snippet: {body[:200]}")  # Log the first 200 characters of the body for debugging
             content_snippet = body[:1200] 
 
             prompt = f"""
@@ -129,7 +143,9 @@ def filter_docs(state: DigestState) -> dict:
             """
 
             try: 
+                logger.info(f"Invoking LLM to score document relevance with prompt: {prompt}")
                 response = llm_with_tool.invoke(prompt)
+                logger.info(f"Relevance analysis for '{title}': Score {response.score}, Analysis: {response.analysis}")
                 if response.score >=7: 
                     filtered_results.append({
                         "query": query,
@@ -140,6 +156,7 @@ def filter_docs(state: DigestState) -> dict:
                         "score": response.score
                     })
             except Exception as e:
+                logger.error(f"Error scoring document relevance: {e}")
                 raise RuntimeError(f"Error scoring document relevance: {e}")
 
     return {
@@ -147,6 +164,7 @@ def filter_docs(state: DigestState) -> dict:
     }
 
 def summarize_with_llm(state: DigestState) -> dict:
+    logger.info(f"Summarizing {len(state['filtered_docs'])} documents with LLM")
     docs = state["filtered_docs"]
     summaries = []
     for doc in docs:
@@ -165,8 +183,9 @@ def summarize_with_llm(state: DigestState) -> dict:
         {doc['body']}
         """ 
         summary = llm.invoke(prompt)
-
+        logger.info(f"Received summary from LLM for '{doc['title']}': {summary}")
         summary_text = summary.content if hasattr(summary, "content") else str(summary)
+        logger.debug(f"Summary text for '{doc['title']}': {summary_text}")
 
         summaries.append({
             "query": doc["query"],
@@ -177,10 +196,11 @@ def summarize_with_llm(state: DigestState) -> dict:
     return {"summarized_docs": summaries}
 
 def convert_to_markdown(state: DigestState) -> dict:
+    logger.info(f"Converting summarized documents to markdown format for email body")
     summarizes = state["summarized_docs"]
 
     lines = ["# Morning Digest", ""]
-    
+    logger.info(f"Generating markdown for {len(summarizes)} summarized documents")
     for item in summarizes:
         lines.append(f"## {item['query']}")
         lines.append(f"### {item['title']}")
@@ -189,22 +209,24 @@ def convert_to_markdown(state: DigestState) -> dict:
         lines.append("")
     
     markdown = "\n".join(lines).strip() or "# Morning Digest\n\nNo content available."
+    logger.debug(f"Generated markdown content:\n{markdown}")
     return {
         "email_markdown": markdown,
     }
 
 
 def render_bullets(summary_text: str) -> str:
+    logger.info(f"Rendering summary text into HTML bullets")
     lines = str(summary_text).split("\n")
     items = []
-
+    logger.debug(f"Summary text split into {len(lines)} lines for bullet rendering")
     for line in lines:
         cleaned = line.strip().lstrip("-*+ ").strip()
         if cleaned:
             items.append(
                 f"<li style='margin-bottom:10px; color:#374151; line-height:1.65;'>{escape(cleaned)}</li>"
             )
-
+    
     if not items:
         return "<p style='color:#6b7280;'>No summary available.</p>"
 
@@ -212,6 +234,7 @@ def render_bullets(summary_text: str) -> str:
 
 
 def build_email_html(summaries, topics=None):
+    logger.info(f"Building HTML content for email with {len(summaries)} summaries and topics: {topics}")
     today = datetime.now().strftime("%d %b %Y")
     topic_text = ", ".join(topics or [])
 
@@ -261,6 +284,10 @@ def build_email_html(summaries, topics=None):
 
         bullets_html = render_bullets(summary_text)
 
+        logger.info(f"Adding summary to email HTML for topic '{query}' with title '{title}'")
+        logger.debug(f"Summary text for HTML rendering:\n{summary_text}")
+        logger.debug(f"Generated bullets HTML:\n{bullets_html}")
+
         html_parts.append(
             f"""
                 <div style="margin-top:26px; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden;">
@@ -309,6 +336,7 @@ def build_email_html(summaries, topics=None):
 
 
 def format_email(state: DigestState) -> dict:
+    logger.info(f"Formatting email content based on summarized documents and topics")   
     topics = state.get("topics", [])
     subject = f"Morning Digest | {', '.join(topics)}"
 
@@ -317,6 +345,8 @@ def format_email(state: DigestState) -> dict:
         topics=topics
     )
 
+    logger.debug(f"Formatted email subject: {subject}")
+    logger.debug(f"Formatted email HTML body:\n{html_body}")
     return {
         "email_subject": subject,
         "email_html": html_body,
@@ -334,6 +364,7 @@ def clean_text(text: str) -> str:
     )
 
 def send_email(state: DigestState):
+    logger.info(f"Preparing to send email with subject: {state.get('email_subject', 'No Subject')}")
     # 1. Thông tin cấu hình (Nên để trong biến môi trường .env)
     sender_email = os.environ.get("MAIL") 
     receiver_email = os.environ.get("MAIL") 
@@ -359,8 +390,8 @@ def send_email(state: DigestState):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_email, password)
             server.send_message(message)
-        print("✅ Email đã được gửi thành công!")
+        logger.info(f"Email sent successfully to {receiver_email} with subject: {subject}")
     except Exception as e:
-        print(f"❌ Lỗi khi gửi email: {e}")
+        logger.error(f"Error sending email: {e}")
 
     return state #

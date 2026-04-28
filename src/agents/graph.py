@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END, START
-from .state import DigestState
-from .nodes import load_config, load_profile, generate_queries, web_search, filter_docs, summarize_with_llm, format_email, send_email
+from src.agents.state import DigestState
+from src.agents.nodes import load_config, load_profile, generate_queries, web_search, filter_docs, summarize_with_llm, format_email, send_email
 
 def build_graph():
     builder = StateGraph(DigestState)
