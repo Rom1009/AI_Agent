@@ -2,12 +2,14 @@ import logging
 import sys
 from pathlib import Path
 
+from src.utils.config import settings
+
 LOG_DIR = Path("logs")
 LOG_DIR.mkdir(exist_ok = True)
 
 def setup_logger(name: str):
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(getattr(logging, settings.LOG_LEVEL.upper(),logging.INFO))
 
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s", 

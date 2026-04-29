@@ -1,4 +1,3 @@
-from src.module.model import DigestRequest, DigestResponse
 from fastapi import FastAPI
 import uvicorn
 

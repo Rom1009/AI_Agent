@@ -9,3 +9,6 @@ __pycache__/
 
 /thomas_agent.egg-info/
 /logs/
+
+python_project_best_practices.md
+setup-cronjob-github-actions.md

@@ -1,6 +1,6 @@
 import os
 from langchain_ollama import ChatOllama
-from src.agents.state import DigestState
+from src.ai.agents.state import DigestState
 from ddgs import DDGS
 from html import escape
 from datetime import datetime
@@ -10,19 +10,18 @@ from email.mime.multipart import MIMEMultipart
 from email.header import Header
 from email.message import EmailMessage
 from langchain_groq import ChatGroq
-from src.agents.datatype import SearchQueries, ScoreOutput
-from dotenv import load_dotenv
+from src.ai.agents.datatype import SearchQueries, ScoreOutput
 import yaml
 from src.utils.logger import setup_logger
+from src.utils.config import settings
 
-load_dotenv()
 logger = setup_logger("AgentNode")
 
-llm = ChatGroq(model="llama-3.1-8b-instant", api_key=os.getenv("GROQ_API_KEY"), max_tokens=1000)
+llm = ChatGroq(model=settings.MODEL_NAME, api_key=settings.GROQ_API_KEY, max_tokens=1000)
 
 def load_config(state: DigestState) -> dict:
 
-    config_path = "config/input.yml"
+    config_path = settings.CONFIG_PATH
     logger.info(f"Loading configuration from {config_path}")
 
     if not os.path.exists(config_path):
@@ -366,9 +365,9 @@ def clean_text(text: str) -> str:
 def send_email(state: DigestState):
     logger.info(f"Preparing to send email with subject: {state.get('email_subject', 'No Subject')}")
     # 1. Thông tin cấu hình (Nên để trong biến môi trường .env)
-    sender_email = os.environ.get("MAIL") 
-    receiver_email = os.environ.get("MAIL") 
-    password = os.environ.get("PASS_WORD_MAIL")
+    sender_email = settings.MAIL_SENDER
+    receiver_email = settings.MAIL_RECEIVER
+    password = settings.MAIL_PASSWORD.get_secret_value()
 
     # 2. Lấy nội dung từ State
     subject = clean_text(state["email_subject"])
