@@ -14,6 +14,7 @@ class DigestState(TypedDict):
     candidate_urls: list[dict]
     fetched_docs: list[dict]
     filtered_docs: list[dict]
+    filtered_aricles: list[dict]
     summarized_docs: list[dict]
 
     email_subject: str

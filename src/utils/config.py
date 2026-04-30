@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     ENV_MODE: EnvMode = EnvMode.DEV
     CONFIG_PATH: str = "config/input.yml"
     IMG_PATH: str = "public/images"
+    DATABASE_URL: str = "sqlite:///./digest.db"
 
     # ENVIRONMENT VARIABLES
     GROQ_API_KEY: SecretStr

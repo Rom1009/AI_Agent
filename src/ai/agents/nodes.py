@@ -14,6 +14,8 @@ from src.ai.agents.datatype import SearchQueries, ScoreOutput
 import yaml
 from src.utils.logger import setup_logger
 from src.utils.config import settings
+from src.db.db import is_already_sent, add_to_history
+from src.app.schema.model import Article, User, Joblog
 
 logger = setup_logger("AgentNode")
 
@@ -108,55 +110,80 @@ def web_search(state: DigestState) -> dict:
 
     return {"candidate_urls": results}
 
-def filter_docs(state: DigestState) -> dict: 
-    logger.info(f"Filtering documents based on relevance to user interests: {state.get('user_interests', 'General Technology and AI')}")
-    candidate_urls = state["candidate_urls"]
-    filtered_results = []
-    llm_with_tool = llm.with_structured_output(ScoreOutput)
-    for candidate in candidate_urls:
+def filter_nodes(state: DigestState) -> dict:
+    logger.info("Filtering candidate URLs based on relevance to user interests")
+
+    new_articles = []
+
+    for candidate in state["candidate_urls"]:
         query = candidate["query"]
         results = candidate["results"]
         for result in results:
-            title = result["title"]
-            body = result["body"]
+            url = result.get("href", "")
+            title = result.get("title", "")
+            body = result.get("body", "")
 
-            logger.info(f"Processing document: {title}")
-            logger.debug(f"Document content snippet: {body[:200]}")  # Log the first 200 characters of the body for debugging
-            content_snippet = body[:1200] 
+            article = Article(url = url, title = title)
 
-            prompt = f"""
-                Role: Professional News Analyst
-                Task: Evaluate the relevance of the news article below to the user's specific interests.
-                
-                User Interests: {state.get('user_interests', 'General Technology and AI')}
-                Search Context: This article was found using the query "{query}".
+            if not is_already_sent(url):
+                logger.info(f"New article found: {title} ({url})")
+                new_articles.append({
+                    "query": query,
+                    "title": title,
+                    "body": body,
+                    "src_url": url
+                })
+                add_to_history(article)
+    
+    return {"filtered_aricles": new_articles}
 
-                Article Title: {title}
-                Article Content: {content_snippet}
+def filter_docs(state: DigestState) -> dict: 
+    logger.info(f"Filtering documents based on relevance to user interests: {state.get('user_interests', 'General Technology and AI')}")
+    filtered_aricles = state["filtered_aricles"]
+    filtered_results = []
+    llm_with_tool = llm.with_structured_output(ScoreOutput)
+    for candidate in filtered_aricles:
+        query = candidate["query"]
+        title = candidate["title"]
+        body = candidate["body"]
 
-                Rules:
-                1. Analyze the relationship between the article and the User Interests.
-                2. Provide a relevance score from 1 (irrelevant) to 10 (perfect match).
-                3. High scores (7+) should be reserved for articles that directly impact or provide deep insight into the user's topics.
-                4. Focus only on content relevance, ignoring writing style or source.
-            """
+        logger.info(f"Processing document: {title}")
+        logger.debug(f"Document content snippet: {body[:200]}")  # Log the first 200 characters of the body for debugging
+        content_snippet = body[:1200] 
 
-            try: 
-                logger.info(f"Invoking LLM to score document relevance with prompt: {prompt}")
-                response = llm_with_tool.invoke(prompt)
-                logger.info(f"Relevance analysis for '{title}': Score {response.score}, Analysis: {response.analysis}")
-                if response.score >=7: 
-                    filtered_results.append({
-                        "query": query,
-                        "title": title,
-                        "body": body,
-                        "src_url": result["href"],
-                        "analysis": response.analysis,
-                        "score": response.score
-                    })
-            except Exception as e:
-                logger.error(f"Error scoring document relevance: {e}")
-                raise RuntimeError(f"Error scoring document relevance: {e}")
+        prompt = f"""
+            Role: Professional News Analyst
+            Task: Evaluate the relevance of the news article below to the user's specific interests.
+            
+            User Interests: {state.get('user_interests', 'General Technology and AI')}
+            Search Context: This article was found using the query "{query}".
+
+            Article Title: {title}
+            Article Content: {content_snippet}
+
+            Rules:
+            1. Analyze the relationship between the article and the User Interests.
+            2. Provide a relevance score from 1 (irrelevant) to 10 (perfect match).
+            3. High scores (7+) should be reserved for articles that directly impact or provide deep insight into the user's topics.
+            4. Focus only on content relevance, ignoring writing style or source.
+        """
+
+        try: 
+            logger.info(f"Invoking LLM to score document relevance with prompt: {prompt}")
+            response = llm_with_tool.invoke(prompt)
+            logger.info(f"Relevance analysis for '{title}': Score {response.score}, Analysis: {response.analysis}")
+            if response.score >=7: 
+                filtered_results.append({
+                    "query": query,
+                    "title": title,
+                    "body": body,
+                    "src_url": candidate["src_url"],
+                    "analysis": response.analysis,
+                    "score": response.score
+                })
+        except Exception as e:
+            logger.error(f"Error scoring document relevance: {e}")
+            raise RuntimeError(f"Error scoring document relevance: {e}")
 
     return {
         "filtered_docs": filtered_results
