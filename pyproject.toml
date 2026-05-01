@@ -1,0 +1,33 @@
+[project]
+name = "ai"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Rom1009",email = "quynguyencurit2002@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12, <4.0"
+dependencies = [
+    'langchain-community==0.4.1',
+    'langchain-google-genai==4.2.2',
+    'langchain-groq==1.1.2',
+    'langchain-huggingface==1.2.2',
+    'langchain-ollama==1.0.1',
+    'langgraph==1.1.8',
+    'langchain-core==1.3.0',
+    'python-dotenv==1.2.2',
+    'pillow==12.2.0',
+    'ddgs==9.14.1',
+    'ipython==9.12.0',
+    'fastapi==0.136.1',
+    'uvicorn==0.46.0',
+    'sqlmodel==0.0.38',
+    'psycopg2-binary==2.9.12',
+    'email-validator==2.3.0',
+    'pydantic-settings==2.14.0',
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
