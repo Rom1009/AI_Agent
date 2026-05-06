@@ -6,13 +6,15 @@ class UserRepository:
     def __init__(self, session: Session):
         self.session = session
     
-    def get_email_by_user_id(self, user_id: str):
-        statement = select(User).where(User.user_id == user_id)
+    def get_user_by_email(self, email: str):
+        statement = select(User).where(User.email == email)
         return self.session.exec(statement).first()
     
-    def create_user(self, user_id: str, email: str, topics_of_interest: list[str]):
-        new_user = User(user_id = user_id, email=email, topics_of_interest=topics_of_interest)
+    def create_user(self, user_data):
+        new_user = User(**user_data)
         self.session.add(new_user)
         self.session.commit()
         self.session.refresh(new_user)
+        return new_user
+
 

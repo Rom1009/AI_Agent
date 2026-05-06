@@ -1,13 +1,12 @@
 from fastapi import FastAPI, APIRouter
-from sqlmodel import Session
 from src.app.module.user_module import UserModule
 
 def register_modules(app: FastAPI):
     
-    api_router = APIRouter()
+    api_router = APIRouter(prefix="/api")
     
     modules = [
-        UserModule(session=Session()),
+        UserModule(),
     ]
 
     for module in modules:
