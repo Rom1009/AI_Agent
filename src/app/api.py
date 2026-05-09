@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter
 from src.app.module.user_module import UserModule
+from src.app.module.ai_module import AIModule
 
 def register_modules(app: FastAPI):
     
@@ -7,6 +8,7 @@ def register_modules(app: FastAPI):
     
     modules = [
         UserModule(),
+        AIModule(),
     ]
 
     for module in modules:

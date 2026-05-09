@@ -1,7 +1,6 @@
 import logging 
 import sys
 from pathlib import Path
-
 from src.utils.config import settings
 
 LOG_DIR = Path("logs")
