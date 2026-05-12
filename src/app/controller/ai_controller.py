@@ -7,6 +7,6 @@ class AIController:
         self.ai_service = AIService()
 
     async def generate_response(self, prompt: str):
-        gen = self.ai_service.generate_chat_stream(prompt)
+        gen = self.ai_service.generate_response(prompt)
         return StreamingResponse(gen, media_type="text/event-stream")
     
