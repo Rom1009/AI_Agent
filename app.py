@@ -1,72 +1,101 @@
 import streamlit as st
-import httpx
-import asyncio
+import requests
+import time
 
-# --- Cấu hình trang ---
-st.set_page_config(page_title="AI Agent Chat", page_icon="🤖")
-st.title("🤖 AI Agent Streaming Demo")
 
-# --- Khởi tạo lịch sử chat trong session_state ---
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+API_URL = "http://localhost:8000/api/ai"
 
-# --- Hiển thị lịch sử chat từ session_state ---
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+st.set_page_config(page_title="Level 3 Redis Queue", page_icon="🚀")
 
-# --- Hàm gọi API Streaming từ FastAPI ---
-async def get_streaming_response(prompt):
-    full_response = ""
-    # Cần dùng timeout=None vì các tác vụ AI có thể chạy lâu
-    async with httpx.AsyncClient(timeout=None) as client:
-        try:
-            # URL trỏ tới endpoint FastAPI của bạn
-            async with client.stream("GET", "http://localhost:8000/api/ai/generate", params={"prompt": prompt}) as response:
-                if response.status_code != 200:
-                    st.error(f"Lỗi hệ thống: {response.status_code}")
-                    return
+st.title("Level 3 - Redis Queue AI Pipeline")
 
-                # Đọc từng chunk từ stream
-                async for chunk in response.aiter_text():
-                    # Xử lý format "data: content\n\n"
-                    if chunk.startswith("data: "):
-                        # Tách lấy phần nội dung thực sự sau chữ "data: "
-                        content = chunk.replace("data: ", "").replace("\n\n", "")
-                        full_response += content
-                        # Trả về từng đoạn chữ để hiển thị ngay lập tức
-                        yield full_response
-        except Exception as e:
-            st.error(f"Không thể kết nối tới Backend: {e}")
+st.write(
+    """
+    Flow:
+    Streamlit -> FastAPI -> Redis Queue -> Worker -> Result
+    """
+)
 
-# --- Khu vực nhập liệu của người dùng ---
-if prompt := st.chat_input("Bạn muốn hỏi gì?"):
-    
-    # 1. Hiển thị tin nhắn người dùng
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+text = st.text_input("Enter text to process:")
 
-    # 2. Hiển thị khu vực phản hồi của AI
-    with st.chat_message("assistant"):
-        placeholder = st.empty()  # Nơi để cập nhật chữ chạy
-        
-        # Chạy hàm async để lấy dữ liệu
-        async def run_chat():
-            final_text = ""
-            async for current_text in get_streaming_response(prompt):
-                final_text = current_text
-                # Thêm ký tự ▌ để tạo hiệu ứng con trỏ đang soạn thảo
-                placeholder.markdown(current_text + "▌")
-            
-            # Sau khi xong, hiển thị văn bản cuối cùng không có con trỏ
-            placeholder.markdown(final_text)
-            return final_text
+if st.button("Submit Job"):
+    if not text.strip():
+        st.warning("Please enter some text.")
+    else:
+        response = requests.post(
+            f"{API_URL}/submit",
+            json={"text": text},
+            timeout=10,
+        )
 
-        # Thực thi xử lý async trong môi trường đồng bộ của Streamlit
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        ai_response = loop.run_until_complete(run_chat())
+        if response.status_code == 200:
+            data = response.json()
+            st.session_state["job_id"] = data["job_id"]
+            st.success(f"Job submitted: {data['job_id']}")
+        else:
+            st.error(f"API error: {response.text}")
 
-    # 3. Lưu phản hồi của AI vào lịch sử chat
-    st.session_state.messages.append({"role": "assistant", "content": ai_response})
+
+if "job_id" in st.session_state:
+    job_id = st.session_state["job_id"]
+
+    st.divider()
+    st.write("Current job ID:")
+    st.code(job_id)
+
+    if st.button("Check Result"):
+        response = requests.get(
+            f"{API_URL}/result/{job_id}",
+            timeout=10,
+        )
+
+
+        data = response.json()
+
+        print(data)
+        st.write("Status:", data.get("status"))
+
+        if data.get("status") == "DONE":
+            st.success(data.get("result"))
+        elif data.get("status") == "FAILED":
+            st.error(data.get("error"))
+        elif data.get("status") == "NOT_FOUND":
+            st.error("Job not found")
+        else:
+            st.warning("Still processing...")
+
+    if st.button("Auto Poll Until Done"):
+        placeholder = st.empty()
+
+        while True:
+            response = requests.get(
+                f"{API_URL}/result/{job_id}",
+                timeout=10,
+            )
+
+            data = response.json()
+            status = data.get("status")
+
+            placeholder.write(f"Status: {status}")
+
+            if status == "DONE":
+                st.success(data.get("result"))
+                break
+
+            if status == "FAILED":
+                st.error(data.get("error"))
+                break
+
+            if status == "NOT_FOUND":
+                st.error("Job not found")
+                break
+
+            time.sleep(2)
+
+
+st.divider()
+
+if st.button("Check Queue Size"):
+    response = requests.get(f"{API_URL}/queue_size", timeout=10)
+    data = response.json()
+    st.write("Queue size:", data["size"])

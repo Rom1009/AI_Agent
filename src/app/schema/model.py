@@ -54,3 +54,6 @@ class UserResponse(SQLModel):
 class UserRequest(SQLModel):
     email: str
     topics_of_interest: list[str] = Field(default_factory=list)
+
+class JobRequest(SQLModel):
+    text: str
