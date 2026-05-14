@@ -1,24 +1,24 @@
-import streamlit as st
-import requests
 import time
+import requests
+import streamlit as st
 
 
 API_URL = "http://localhost:8000/api/ai"
 
-st.set_page_config(page_title="Level 3 Redis Queue", page_icon="🚀")
+st.set_page_config(page_title="Level 4 Celery Pipeline", page_icon="⚙️")
 
-st.title("Level 3 - Redis Queue AI Pipeline")
+st.title("⚙️ Level 4 - Celery AI Pipeline")
 
 st.write(
     """
     Flow:
-    Streamlit -> FastAPI -> Redis Queue -> Worker -> Result
+    Streamlit -> FastAPI -> Celery Task -> Redis Broker -> Celery Worker -> Redis Result Backend
     """
 )
 
 text = st.text_input("Enter text to process:")
 
-if st.button("Submit Job"):
+if st.button("Submit Task"):
     if not text.strip():
         st.warning("Please enter some text.")
     else:
@@ -30,46 +30,47 @@ if st.button("Submit Job"):
 
         if response.status_code == 200:
             data = response.json()
-            st.session_state["job_id"] = data["job_id"]
-            st.success(f"Job submitted: {data['job_id']}")
+            st.session_state["task_id"] = data["task_id"]
+            st.success(f"Task submitted: {data['task_id']}")
         else:
             st.error(f"API error: {response.text}")
 
 
-if "job_id" in st.session_state:
-    job_id = st.session_state["job_id"]
+if "task_id" in st.session_state:
+    task_id = st.session_state["task_id"]
 
     st.divider()
-    st.write("Current job ID:")
-    st.code(job_id)
+    st.write("Current task ID:")
+    st.code(task_id)
 
     if st.button("Check Result"):
         response = requests.get(
-            f"{API_URL}/result/{job_id}",
+            f"{API_URL}/result/{task_id}",
             timeout=10,
         )
 
-
         data = response.json()
 
-        print(data)
         st.write("Status:", data.get("status"))
 
-        if data.get("status") == "DONE":
+        if data.get("status") == "SUCCESS":
             st.success(data.get("result"))
-        elif data.get("status") == "FAILED":
-            st.error(data.get("error"))
-        elif data.get("status") == "NOT_FOUND":
-            st.error("Job not found")
-        else:
-            st.warning("Still processing...")
 
-    if st.button("Auto Poll Until Done"):
+        elif data.get("status") == "FAILURE":
+            st.error(data.get("error"))
+
+        elif data.get("status") == "RETRY":
+            st.warning("Task is retrying...")
+
+        else:
+            st.info("Task is still running or waiting...")
+
+    if st.button("Auto Poll Until Finished"):
         placeholder = st.empty()
 
         while True:
             response = requests.get(
-                f"{API_URL}/result/{job_id}",
+                f"{API_URL}/result/{task_id}",
                 timeout=10,
             )
 
@@ -78,24 +79,12 @@ if "job_id" in st.session_state:
 
             placeholder.write(f"Status: {status}")
 
-            if status == "DONE":
+            if status == "SUCCESS":
                 st.success(data.get("result"))
                 break
 
-            if status == "FAILED":
+            if status == "FAILURE":
                 st.error(data.get("error"))
                 break
 
-            if status == "NOT_FOUND":
-                st.error("Job not found")
-                break
-
             time.sleep(2)
-
-
-st.divider()
-
-if st.button("Check Queue Size"):
-    response = requests.get(f"{API_URL}/queue_size", timeout=10)
-    data = response.json()
-    st.write("Queue size:", data["size"])
