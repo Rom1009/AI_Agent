@@ -6,9 +6,10 @@ from src.app.schema.model import JobRequest
 from uuid import uuid4
 from src.app.core.redis import r
 
-from src.app.core.tasks import process_text_job
+from src.app.core.tasks import reliable_process_text_task
 from celery.result import AsyncResult
 from src.app.core.celery_app import celery_app
+from src.app.core.storage import read_dlq, read_history
 
 class AIController:
     
@@ -71,7 +72,7 @@ class AIController:
         }
 
     def submit_job(self, request: JobRequest):
-        task = process_text_job.delay(request.text)
+        task = reliable_process_text_task.delay(request.text)
 
         return {
             "task_id": task.id,
@@ -85,12 +86,26 @@ class AIController:
             "task_id": task_id,
             "status": task_result.status,
             "result": None,
-            "error": None
+            "error": None,
         }
 
         if task_result.successful():
             response["result"] = task_result.result
+
         elif task_result.failed():
             response["error"] = str(task_result.result)
 
+        elif task_result.status == "RETRY":
+            response["error"] = "Task is retrying"
+
         return response
+    
+    def get_history(self, limit: int = 50):
+        return {
+            "items": read_history(limit)
+        }
+
+    def get_dlq(self, limit: int = 50):
+        return {
+            "items": read_dlq(limit)
+        }

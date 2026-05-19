@@ -1,0 +1,4 @@
+{"timestamp": "2026-05-19T14:14:51.730854+00:00", "task_id": "3db5860e-d4f1-4ccf-9442-50ca0cf550ea", "event": "TASK_STARTED", "payload": {"text": "assdd", "retry_count": 0}}
+{"timestamp": "2026-05-19T14:14:56.731440+00:00", "task_id": "3db5860e-d4f1-4ccf-9442-50ca0cf550ea", "event": "TASK_SUCCEEDED", "payload": {"input": "assdd", "result": "ASSDD", "model": "fake-uppercase-model-v2-reliable", "retry_count": 0}}
+{"timestamp": "2026-05-19T14:17:26.046426+00:00", "task_id": "ab24de73-df6d-494b-87c5-f074875bb50e", "event": "TASK_STARTED", "payload": {"text": "ádsd", "retry_count": 0}}
+{"timestamp": "2026-05-19T14:17:31.046883+00:00", "task_id": "ab24de73-df6d-494b-87c5-f074875bb50e", "event": "TASK_SUCCEEDED", "payload": {"input": "ádsd", "result": "ÁDSD", "model": "fake-uppercase-model-v2-reliable", "retry_count": 0}}

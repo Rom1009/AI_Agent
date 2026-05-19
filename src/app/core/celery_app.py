@@ -4,7 +4,7 @@ REDIS_BROKEN_URL = "redis://localhost:6379/0"
 REDIS_RESULT_URL = "redis://localhost:6379/1"
 
 celery_app = Celery(
-    "level4_ai_pipeline",
+    "level5_ai_pipeline",
     broker= REDIS_BROKEN_URL,
     backend = REDIS_RESULT_URL
 )
@@ -15,5 +15,11 @@ celery_app.conf.update(
     result_serializer = "json",
     accept_content = ["json"], 
     timezone = "Asia/Singapore",
-    enable_utc = True
+    enable_utc = True,
+
+    worker_prefetch_multiplier = 1,
+    task_acks_late = True,
+
+    task_time_limit = 20,
+    task_soft_time_limit = 15
 )

@@ -5,14 +5,24 @@ import streamlit as st
 
 API_URL = "http://localhost:8000/api/ai"
 
-st.set_page_config(page_title="Level 4 Celery Pipeline", page_icon="⚙️")
+st.set_page_config(page_title="Level 5 Reliable Pipeline", page_icon="🛡️")
 
-st.title("⚙️ Level 4 - Celery AI Pipeline")
+st.title("🛡️ Level 5 - Reliable Celery AI Pipeline")
 
 st.write(
     """
     Flow:
-    Streamlit -> FastAPI -> Celery Task -> Redis Broker -> Celery Worker -> Redis Result Backend
+    Streamlit -> FastAPI -> Celery -> Redis -> Worker -> Result/DLQ/History
+    """
+)
+
+st.info(
+    """
+    Try inputs:
+    - `hello mlops` -> success
+    - `bad` -> permanent failure
+    - `unstable` -> transient error with retry
+    - `timeout` -> timeout failure
     """
 )
 
@@ -88,3 +98,20 @@ if "task_id" in st.session_state:
                 break
 
             time.sleep(2)
+
+
+st.divider()
+
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("Show Job History"):
+        response = requests.get(f"{API_URL}/history?limit=20", timeout=10)
+        data = response.json()
+        st.write(data["items"])
+
+with col2:
+    if st.button("Show DLQ"):
+        response = requests.get(f"{API_URL}/dlq?limit=20", timeout=10)
+        data = response.json()
+        st.write(data["items"])
